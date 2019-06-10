@@ -72,6 +72,9 @@ extern "C" void show_image_cv(image p, const char *name, IplImage *disp);
 #define BOUNDIGN_BOXES_DEFAULT_NAME "bounding_boxes_"
 #define PUBLISH_DETECTION_IMAGE_PATH_ROOT "publishers/detection_image_"
 #define DETECTION_IMAGE_DEFAULT_NAME "detection_image_"
+#define THRESHOLD_PATH "yolo_model/threshold/value"
+#define WEIGHTS_MODEL_PATH  "yolo_model/weight_file/name"
+#define DEFAULT_WEIGHT_FILE_NAME "yolov3-tiny.weights"
 typedef struct{
 
   std::string cameraTopicNames[CAMERA_NUM]; //Added by Lynne.

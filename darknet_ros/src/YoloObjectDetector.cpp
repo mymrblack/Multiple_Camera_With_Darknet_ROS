@@ -91,11 +91,11 @@ void YoloObjectDetector::init()
 
   // Threshold of object detection.
   float thresh;
-  nodeHandle_.param("yolo_model/threshold/value", thresh, (float) 0.3);
+  nodeHandle_.param( THRESHOLD_PATH, thresh, (float) 0.3);
 
   // Path to weights file.
-  nodeHandle_.param("yolo_model/weight_file/name", weightsModel,
-                    std::string("yolov2-tiny.weights"));
+  nodeHandle_.param(WEIGHTS_MODEL_PATH, weightsModel,
+                    std::string(DEFAULT_WEIGHT_FILE_NAME));
   nodeHandle_.param("weights_path", weightsPath, std::string("/default"));
   weightsPath += "/" + weightsModel;
   weights = new char[weightsPath.length() + 1];
