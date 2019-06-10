@@ -221,13 +221,12 @@ class YoloObjectDetector
 
   network *net_;
   std_msgs::Header headerBuff_[3];
+  //std_msgs::Header linkedHeaderBuff_[3];
   image buff_[3];
   image buffLetter_[3];
   int buffId_[3];
   int buffIndex_ = 0;
   IplImage * ipl_;
-  IplImage * ipl1_;
-  IplImage * ipl2_;
   float fps_ = 0;
   float demoThresh_ = 0;
   float demoHier_ = .5;

@@ -178,7 +178,7 @@ void YoloObjectDetector::cameraCallback(const sensor_msgs::ImageConstPtr& msg)
     {
       boost::unique_lock<boost::shared_mutex> lockImageCallback(mutexImageCallback_);
       imageHeader_ = msg->header;
-      std::cout << imageHeader_ << std::endl;
+      //std::cout << imageHeader_ << std::endl;
       camImageCopy_ = cam_image->image.clone();
     }
     {
@@ -273,11 +273,9 @@ void YoloObjectDetector::checkForObjectsActionGoalCB()
   }
 
   if (cam_image) {
-    std::cout << "cam_image: "<< cam_image << std::endl; //Add By Lynne.
     {
       boost::unique_lock<boost::shared_mutex> lockImageCallback(mutexImageCallback_);
       camImageCopy_ = cam_image->image.clone();
-      std::cout << "camImageCopy_: "<< camImageCopy_ << std::endl; //Add By Lynne.
     }
     {
       boost::unique_lock<boost::shared_mutex> lockImageCallback(mutexActionStatus_);
@@ -467,6 +465,9 @@ void *YoloObjectDetector::fetchInThread()
     boost::shared_lock<boost::shared_mutex> lock(mutexImageCallback_);
     buffId_[buffIndex_] = actionId_;
   }
+//--------------------Added By Lynne Begin--------------------------
+// linkedHeaderBuff_[buffIndex_] = headerBuff_[buffIndex_];
+//--------------------Added By Lynne End--------------------------
   rgbgr_image(buff_[buffIndex_]);
   letterbox_image_into(buff_[buffIndex_], net_->w, net_->h, buffLetter_[buffIndex_]);
   return 0;
@@ -475,10 +476,11 @@ void *YoloObjectDetector::fetchInThread()
 void *YoloObjectDetector::displayInThread(void *ptr)
 {
   if ( headerBuff_[(buffIndex_ + 1)%3].frame_id == "camera1_color_optical_frame"){
-     show_image_cv(buff_[(buffIndex_ + 1)%3], "YOLO V3", ipl1_);
+  //if ( linkedHeaderBuff_[(buffIndex_ + 1)%3].frame_id == "camera1_color_optical_frame"){
+     show_image_cv(buff_[(buffIndex_ + 1)%3], "YOLO V3", ipl_);
   }
   else{
-     show_image_cv(buff_[(buffIndex_ + 1)%3], "YOLO V3_1", ipl2_);
+     show_image_cv(buff_[(buffIndex_ + 1)%3], "YOLO V3_1", ipl_);
   }
   int c = cvWaitKey(waitKeyDelay_);
   if (c != -1) c = c%256;
@@ -568,11 +570,13 @@ void YoloObjectDetector::yolo()
   headerBuff_[0] = imageAndHeader.header;
   headerBuff_[1] = headerBuff_[0];
   headerBuff_[2] = headerBuff_[0];
+  //linkedHeaderBuff_[0] = imageAndHeader.header;
+  //linkedHeaderBuff_[1] = headerBuff_[0];
+  //linkedHeaderBuff_[2] = headerBuff_[0];
   buffLetter_[0] = letterbox_image(buff_[0], net_->w, net_->h);
   buffLetter_[1] = letterbox_image(buff_[0], net_->w, net_->h);
   buffLetter_[2] = letterbox_image(buff_[0], net_->w, net_->h);
-  ipl1_ = cvCreateImage(cvSize(buff_[0].w, buff_[0].h), IPL_DEPTH_8U, buff_[0].c);
-  ipl2_ = cvCreateImage(cvSize(buff_[0].w, buff_[0].h), IPL_DEPTH_8U, buff_[0].c);
+  ipl_ = cvCreateImage(cvSize(buff_[0].w, buff_[0].h), IPL_DEPTH_8U, buff_[0].c);
 
   int count = 0;
 
@@ -622,6 +626,7 @@ void YoloObjectDetector::yolo()
     }
     fetch_thread.join();
     detect_thread.join();
+    //linkedHeaderBuff_[(buffIndex_ + 1) % 3] = headerBuff_[buffIndex_];
     ++count;
     if (!isNodeRunning()) {
       demoDone_ = true;
@@ -653,9 +658,8 @@ bool YoloObjectDetector::isNodeRunning(void)
 void *YoloObjectDetector::publishInThread()
 {
   // Publish image.
-  cv::Mat cvImage_1 = cv::cvarrToMat(ipl1_);
-  cv::Mat cvImage_2 = cv::cvarrToMat(ipl2_);
-  if (!publishDetectionImage(cv::Mat(cvImage_1)) && !publishDetectionImage(cv::Mat(cvImage_2)) ) {
+  cv::Mat cvImage = cv::cvarrToMat(ipl_);
+  if (!publishDetectionImage(cv::Mat(cvImage))) {
     ROS_DEBUG("Detection image has not been broadcasted.");
   }
 
