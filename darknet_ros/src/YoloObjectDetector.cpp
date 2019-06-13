@@ -48,6 +48,12 @@ YoloObjectDetector::~YoloObjectDetector()
   {
     boost::unique_lock<boost::shared_mutex> lockNodeStatus(mutexNodeStatus_);
     isNodeRunning_ = false;
+	{
+	//The flag here just for continue the while loop in yolo() so that it can detect the isNodeRunning_
+	  std::unique_lock<std::mutex> loc(mutexNewImageCome);
+	  newImageComeFlag_ = true;
+	  newImageComeCondition.notify_all();
+	}
   }
   yoloThread_.join();
 }
@@ -163,8 +169,11 @@ void YoloObjectDetector::init()
 void YoloObjectDetector::cameraCallback(const sensor_msgs::ImageConstPtr& msg)
 {
   ROS_DEBUG("[YoloObjectDetector] USB image received.");
-  newImageComeFlag_ = true;
-
+  {
+	  std::unique_lock<std::mutex> loc(mutexNewImageCome);
+  	newImageComeFlag_ = true;
+	newImageComeCondition.notify_all();
+  }
   cv_bridge::CvImagePtr cam_image;
 
   try {
@@ -538,6 +547,7 @@ void YoloObjectDetector::setupNetwork(char *cfgfile, char *weightfile, char *dat
 void YoloObjectDetector::yolo()
 {
   const auto wait_duration = std::chrono::milliseconds(2000);
+
   while (!getImageStatus()) {
     printf("Waiting for image.\n");
     if (!isNodeRunning()) {
@@ -599,6 +609,12 @@ void YoloObjectDetector::yolo()
 
   while (!demoDone_) {
 //-------------Added By Lynne Begin------------------
+	  std::unique_lock<std::mutex> loc(mutexNewImageCome);
+	while(!newImageComeFlag_)
+	{
+		newImageComeCondition.wait(loc);
+	}
+	  /*
     if (!newImageComeFlag_) {
         if (!isNodeRunning()) {
           demoDone_ = true;
@@ -606,6 +622,8 @@ void YoloObjectDetector::yolo()
     	std::this_thread::sleep_for(wait_duration_1);
 	continue;	
     }
+	*/
+
     newImageComeFlag_ = false;
 //-------------Added By Lynne End------------------
 

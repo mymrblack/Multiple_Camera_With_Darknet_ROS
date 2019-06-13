@@ -16,6 +16,8 @@
 #include <pthread.h>
 #include <thread>
 #include <chrono>
+#include <mutex>
+#include <condition_variable>
 
 // ROS
 #include <ros/ros.h>
@@ -308,6 +310,8 @@ class YoloObjectDetector
   void publishTopics(TopicInputParams_ *topicInputParams);
   
   bool newImageComeFlag_ = false;
+  std::mutex mutexNewImageCome;
+  std::condition_variable newImageComeCondition;
 
 };
 
