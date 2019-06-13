@@ -1,41 +1,14 @@
-# YOLO ROS: Real-Time Object Detection for ROS
+# YOLO ROS: Multiple_Camera_Object_Tracking_With_Darknet_ROS
 
 ## Overview
 
-This is a ROS package developed for object detection in camera images. You only look once (YOLO) is a state-of-the-art, real-time object detection system. In the following ROS package you are able to use YOLO (V3) on GPU and CPU. The pre-trained model of the convolutional neural network is able to detect pre-trained classes including the data set from VOC and COCO, or you can also create a network with your own detection objects. For more information about YOLO, Darknet, available training data and training YOLO see the following link: [YOLO: Real-Time Object Detection](http://pjreddie.com/darknet/yolo/).
+This project is aiming to do objects tracking by using multiple cameras. The codes have not finished yet.
 
-The YOLO packages have been tested under ROS Melodic and Ubuntu 18.04. This is research code, expect that it changes often and any fitness for a particular purpose is disclaimed.
-
-**Author: [Marko Bjelonic](http://www.markobjelonic.me), marko.bjelonic@mavt.ethz.ch**
-
-**Affiliation: [Robotic Systems Lab](http://www.rsl.ethz.ch/), ETH Zurich**
-
-![Darknet Ros example: Detection image](darknet_ros/doc/test_detection.png)
-![Darknet Ros example: Detection image](darknet_ros/doc/test_detection_anymal.png)
-
-Based on the [Pascal VOC](https://pjreddie.com/projects/pascal-voc-dataset-mirror/) 2012 dataset, YOLO can detect the 20 Pascal object classes:
-
-- person
-- bird, cat, cow, dog, horse, sheep
-- aeroplane, bicycle, boat, bus, car, motorbike, train
-- bottle, chair, dining table, potted plant, sofa, tv/monitor
-
-Based on the [COCO](http://cocodataset.org/#home) dataset, YOLO can detect the 80 COCO object classes:
-
-- person
-- bicycle, car, motorbike, aeroplane, bus, train, truck, boat
-- traffic light, fire hydrant, stop sign, parking meter, bench
-- cat, dog, horse, sheep, cow, elephant, bear, zebra, giraffe
-- backpack, umbrella, handbag, tie, suitcase, frisbee, skis, snowboard, sports ball, kite, baseball bat, baseball glove, skateboard, surfboard, tennis racket
-- bottle, wine glass, cup, fork, knife, spoon, bowl
-- banana, apple, sandwich, orange, broccoli, carrot, hot dog, pizza, donut, cake
-- chair, sofa, pottedplant, bed, diningtable, toilet, tvmonitor, laptop, mouse, remote, keyboard, cell phone, microwave, oven, toaster, sink, refrigerator, book, clock, vase, scissors, teddy bear, hair drier, toothbrush
-
-## Citing
+## Citation
 
 The YOLO methods used in this software are described in the paper: [You Only Look Once: Unified, Real-Time Object Detection](https://arxiv.org/abs/1506.02640).
 
-If you are using YOLO V3 for ROS, please add the following citation to your publication:
+This program was modified based on the following project.
 
 M. Bjelonic
 **"YOLO ROS: Real-Time Object Detection for ROS"**,
@@ -128,66 +101,3 @@ You will see the image above popping up.
 
 In order to get YOLO ROS: Real-Time Object Detection for ROS to run with your robot, you will need to adapt a few parameters. It is the easiest if duplicate and adapt all the parameter files that you need to change from the `darkned_ros` package. These are specifically the parameter files in `config` and the launch file from the `launch` folder.
 
-## Nodes
-
-### Node: darknet_ros
-
-This is the main YOLO ROS: Real-Time Object Detection for ROS node. It uses the camera measurements to detect pre-learned objects in the frames.
-
-### ROS related parameters
-
-You can change the names and other parameters of the publishers, subscribers and actions inside `darkned_ros/config/ros.yaml`.
-
-#### Subscribed Topics
-
-* **`/camera_reading`** ([sensor_msgs/Image])
-
-    The camera measurements.
-
-#### Published Topics
-
-* **`object_detector`** ([std_msgs::Int8])
-
-    Publishes the number of detected objects.
-
-* **`bounding_boxes`** ([darknet_ros_msgs::BoundingBoxes])
-
-    Publishes an array of bounding boxes that gives information of the position and size of the bounding box in pixel coordinates.
-
-* **`detection_image`** ([sensor_msgs::Image])
-
-    Publishes an image of the detection image including the bounding boxes.
-
-#### Actions
-
-* **`camera_reading`** ([sensor_msgs::Image])
-
-    Sends an action with an image and the result is an array of bounding boxes.
-
-### Detection related parameters
-
-You can change the parameters that are related to the detection by adding a new config file that looks similar to `darkned_ros/config/yolo.yaml`.
-
-* **`image_view/enable_opencv`** (bool)
-
-    Enable or disable the open cv view of the detection image including the bounding boxes.
-
-* **`image_view/wait_key_delay`** (int)
-
-    Wait key delay in ms of the open cv window.
-
-* **`yolo_model/config_file/name`** (string)
-
-    Name of the cfg file of the network that is used for detection. The code searches for this name inside `darkned_ros/yolo_network_config/cfg/`.
-
-* **`yolo_model/weight_file/name`** (string)
-
-    Name of the weights file of the network that is used for detection. The code searches for this name inside `darkned_ros/yolo_network_config/weights/`.
-
-* **`yolo_model/threshold/value`** (float)
-
-    Threshold of the detection algorithm. It is defined between 0 and 1.
-
-* **`yolo_model/detection_classes/names`** (array of strings)
-
-    Detection names of the network used by the cfg and weights file inside `darkned_ros/yolo_network_config/`.
