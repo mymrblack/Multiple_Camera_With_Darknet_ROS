@@ -96,6 +96,12 @@ typedef struct{
   int detectionImageQueueSize;
   bool detectionImageLatch;
 
+  std::string depthTopicNames[CAMERA_NUM];
+  int depthQueueSize;
+
+  std::string corbboxTopicName;
+  int corbboxQueueSize;
+  bool corbboxLatch;
 
 } TopicInputParams_;
 
@@ -233,9 +239,9 @@ class YoloObjectDetector
   //SortObject sortobject;
   cv::Mat depth_image; // store depth image matrix
   //! Subscriber of the depth image
-  ros::Subscriber depth_image_sub;
+  ros::Subscriber depthImageSubscriber_[CAMERA_NUM];
   //! Publisher of the bounding box with (x,y,z)
-  ros::Publisher cor_depth_image_pub;
+  ros::Publisher corDepthImagePublisher_;
 
 /***********************************************************************************************************/
   ros::Publisher objectPublisher_[CAMERA_NUM];
