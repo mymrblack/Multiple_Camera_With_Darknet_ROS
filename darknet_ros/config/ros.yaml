@@ -13,6 +13,7 @@ subscribers:
     topic: /camera2/depth/image_rect_raw 
     queue_size: 1
 
+
 actions:
 
   camera_reading:
@@ -54,6 +55,7 @@ publishers:
     topic: CorBBox_depth_image
     queue_size: 1
     latch: true
+
 
 image_view:
 
