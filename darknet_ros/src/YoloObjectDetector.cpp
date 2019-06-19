@@ -81,6 +81,7 @@ bool YoloObjectDetector::readParameters()
   rosBoxes_ = std::vector<std::vector<RosBox_> >(numClasses_);
   rosBoxCounter_ = std::vector<int>(numClasses_);
 
+  readTopicParameters();
   return true;
 }
 
@@ -134,28 +135,9 @@ void YoloObjectDetector::init()
 
   // Initialize publisher and subscriber.
 
-//--------------------- Added by Lynne Begin ------------------------------//
+  publishTopics();
 
-  TopicInputParams_ topicInputParams;
-  getTopicInputParams(&topicInputParams);
-
-//--------------------- Added by Lynne End ------------------------------//
-
-
-  // subsrciber
-  for (int i = 0; i < CAMERA_NUM; i++){
-	  imageSubscriber_[i] = imageTransport_.subscribe( topicInputParams.cameraTopicNames[i], topicInputParams.cameraQueueSize, &YoloObjectDetector::cameraCallback, this);
-	  depthImageSubscriber_[i]= nodeHandle_.subscribe(topicInputParams.depthTopicNames[i], topicInputParams.depthQueueSize, &YoloObjectDetector::depth_image_Callback, this);
-  }
-  /*
-  imageSubscriber_[0] = imageTransport_.subscribe( topicInputParams.cameraTopicNames[0], topicInputParams.cameraQueueSize, &YoloObjectDetector::cameraCallback, this);
-  imageSubscriber_[1] = imageTransport_.subscribe( topicInputParams.cameraTopicNames[1], topicInputParams.cameraQueueSize, &YoloObjectDetector::cameraCallback, this);
-   depthImageSubscriber_[0]= nodeHandle_.subscribe(topicInputParams.depthTopicNames[0], topicInputParams.depthQueueSize, &YoloObjectDetector::depth_image_Callback, this);
-   depthImageSubscriber_[1]= nodeHandle_.subscribe(topicInputParams.depthTopicNames[1], topicInputParams.depthQueueSize, &YoloObjectDetector::depth_image_Callback, this);
-   */
-//--------------------- Added by Lynne Begin ------------------------------//
-  publishTopics(&topicInputParams);
-//--------------------- Added by Lynne End ------------------------------//
+  subscribeTopics();
 
   // Action servers.
   std::string checkForObjectsActionName;
@@ -171,7 +153,6 @@ void YoloObjectDetector::init()
 }
 
 
-/*************************************** New Added *********************************************************/
 
 void YoloObjectDetector::depth_image_Callback(const sensor_msgs::ImageConstPtr& msg)
 {
@@ -191,7 +172,6 @@ void YoloObjectDetector::depth_image_Callback(const sensor_msgs::ImageConstPtr& 
 	depth_image = cv_ptr->image;
 }
 
-/******************************************  End **************************************************************/
 void YoloObjectDetector::cameraCallback(const sensor_msgs::ImageConstPtr& msg)
 {
   ROS_DEBUG("[YoloObjectDetector] USB image received.");
@@ -226,19 +206,6 @@ void YoloObjectDetector::cameraCallback(const sensor_msgs::ImageConstPtr& msg)
   return;
 }
 
-/*
-void YoloObjectDetector::getCameraTopic(std::string cameraTopicNames[]){
-  std::string subscribeTopicPaths[CAMERA_NUM];
-  std::string cameraNum;
-  for(int i=1; i <= CAMERA_NUM; i++){
-	cameraNum = std::to_string(i);	
-	subscribeTopicPaths[i-1] = SUBCRIBE_CAM_TOPIC_PATH_ROOT + cameraNum + "/topic";
-	std::cout << subscribeTopicPaths[i-1] << std::endl;
-  	nodeHandle_.param(subscribeTopicPaths[i-1], cameraTopicNames[i-1],
-                   std::string("/camera/image_raw"));
-  }
-}
-*/
 
 void YoloObjectDetector::getTopicNameParameters(const std::string pathRoot, std::string topicNames[], int cam_num, const std::string defaultName){
 
@@ -254,48 +221,58 @@ void YoloObjectDetector::getTopicNameParameters(const std::string pathRoot, std:
   }
 }
 
-void YoloObjectDetector::publishTopics(TopicInputParams_ *topicInputParams){
+void YoloObjectDetector::publishTopics(){
 
-  objectPublisher_[0] = nodeHandle_.advertise<std_msgs::Int8>(topicInputParams->objectDetectorTopicNames[0],
-                                                           topicInputParams->objectDetectorQueueSize,
-                                                           topicInputParams->objectDetectorLatch);
+  objectPublisher_[0] = nodeHandle_.advertise<std_msgs::Int8>(topicParameters.objectDetectorTopicNames[0],
+                                                           topicParameters.objectDetectorQueueSize,
+                                                           topicParameters.objectDetectorLatch);
   boundingBoxesPublisher_[0] = nodeHandle_.advertise<darknet_ros_msgs::BoundingBoxes>(
-      topicInputParams->boundingBoxesTopicNames[0], topicInputParams->boundingBoxesQueueSize, topicInputParams->boundingBoxesLatch);
+      topicParameters.boundingBoxesTopicNames[0], topicParameters.boundingBoxesQueueSize, topicParameters.boundingBoxesLatch);
 
-  detectionImagePublisher_[0] = nodeHandle_.advertise<sensor_msgs::Image>(topicInputParams->detectionImageTopicNames[0],
-                                                                       topicInputParams->detectionImageQueueSize,
-                                                                       topicInputParams->detectionImageLatch);
+  detectionImagePublisher_[0] = nodeHandle_.advertise<sensor_msgs::Image>(topicParameters.detectionImageTopicNames[0],
+                                                                       topicParameters.detectionImageQueueSize,
+                                                                       topicParameters.detectionImageLatch);
 
-   corDepthImagePublisher_= nodeHandle_.advertise<darknet_ros_msgs::CorBBox>(topicInputParams->corbboxTopicName, topicInputParams->corbboxQueueSize, topicInputParams->corbboxLatch);
+   corDepthImagePublisher_= nodeHandle_.advertise<darknet_ros_msgs::CorBBox>(topicParameters.corbboxTopicName, topicParameters.corbboxQueueSize, topicParameters.corbboxLatch);
 }
 
-void YoloObjectDetector::getTopicInputParams(TopicInputParams_ *topicInputParams){
 
-  getTopicNameParameters(SUBCRIBE_CAM_TOPIC_PATH_ROOT, topicInputParams->cameraTopicNames, CAMERA_NUM, CAMERA_TOPIC_DEFAULT_NAME);
+void YoloObjectDetector::readTopicParameters(){
+  getTopicNameParameters(SUBCRIBE_CAM_TOPIC_PATH_ROOT, topicParameters.cameraTopicNames, CAMERA_NUM, CAMERA_TOPIC_DEFAULT_NAME);
 
-  getTopicNameParameters(PUBLISH_OBJECT_DETECTOR_PATH_ROOT, topicInputParams->objectDetectorTopicNames, CAMERA_NUM, OBJECT_DETECTOR_DEFAULT_NAME);
+  getTopicNameParameters(PUBLISH_OBJECT_DETECTOR_PATH_ROOT, topicParameters.objectDetectorTopicNames, CAMERA_NUM, OBJECT_DETECTOR_DEFAULT_NAME);
 
-  getTopicNameParameters(PUBLISH_BOUNDING_BOXES_PATH_ROOT, topicInputParams->boundingBoxesTopicNames, CAMERA_NUM, BOUNDIGN_BOXES_DEFAULT_NAME);
+  getTopicNameParameters(PUBLISH_BOUNDING_BOXES_PATH_ROOT, topicParameters.boundingBoxesTopicNames, CAMERA_NUM, BOUNDIGN_BOXES_DEFAULT_NAME);
 
-  getTopicNameParameters(PUBLISH_DETECTION_IMAGE_PATH_ROOT, topicInputParams->detectionImageTopicNames, CAMERA_NUM, DETECTION_IMAGE_DEFAULT_NAME);
+  getTopicNameParameters(PUBLISH_DETECTION_IMAGE_PATH_ROOT, topicParameters.detectionImageTopicNames, CAMERA_NUM, DETECTION_IMAGE_DEFAULT_NAME);
 
-  getTopicNameParameters(CAMERA_DEPTH_TOPIC_PATH_ROOT, topicInputParams->depthTopicNames, CAMERA_NUM, CAMERA_DEPTH_TOPIC_DEFAULT_NAME);
+  getTopicNameParameters(CAMERA_DEPTH_TOPIC_PATH_ROOT, topicParameters.depthTopicNames, CAMERA_NUM, CAMERA_DEPTH_TOPIC_DEFAULT_NAME);
 
-  nodeHandle_.param("subscribers/camera_depth_reading_1/queue_size", topicInputParams->depthQueueSize, 1);
-  nodeHandle_.param("subscribers/camera_reading_1/queue_size", topicInputParams->cameraQueueSize, 1);
+  nodeHandle_.param("subscribers/camera_depth_reading_1/queue_size", topicParameters.depthQueueSize, 1);
+  nodeHandle_.param("subscribers/camera_reading_1/queue_size", topicParameters.cameraQueueSize, 1);
 
-  nodeHandle_.param("publishers/object_detector/queue_size", topicInputParams->objectDetectorQueueSize, 1);
-  nodeHandle_.param("publishers/object_detector/latch", topicInputParams->objectDetectorLatch, false);
+  nodeHandle_.param("publishers/object_detector/queue_size", topicParameters.objectDetectorQueueSize, 1);
+  nodeHandle_.param("publishers/object_detector/latch", topicParameters.objectDetectorLatch, false);
 
-  nodeHandle_.param("publishers/bounding_boxes/queue_size", topicInputParams->boundingBoxesQueueSize, 1);
-  nodeHandle_.param("publishers/bounding_boxes/latch", topicInputParams->boundingBoxesLatch, false);
+  nodeHandle_.param("publishers/bounding_boxes/queue_size", topicParameters.boundingBoxesQueueSize, 1);
+  nodeHandle_.param("publishers/bounding_boxes/latch", topicParameters.boundingBoxesLatch, false);
 
-  nodeHandle_.param("publishers/detection_image/queue_size", topicInputParams->detectionImageQueueSize, 1);
-  nodeHandle_.param("publishers/detection_image/latch", topicInputParams->detectionImageLatch, true);
+  nodeHandle_.param("publishers/detection_image/queue_size", topicParameters.detectionImageQueueSize, 1);
+  nodeHandle_.param("publishers/detection_image/latch", topicParameters.detectionImageLatch, true);
   
-  nodeHandle_.param("publishers/CorBBox_depth_image/topic", topicInputParams->corbboxTopicName, std::string("CorBBox_depth_image"));
-  nodeHandle_.param("publishers/CorBBox_depth_image/queue_size", topicInputParams->corbboxQueueSize, 1);
-  nodeHandle_.param("publishers/CorBBox_depth_image/latch", topicInputParams->corbboxLatch, true);
+  nodeHandle_.param("publishers/CorBBox_depth_image/topic", topicParameters.corbboxTopicName, std::string("CorBBox_depth_image"));
+  nodeHandle_.param("publishers/CorBBox_depth_image/queue_size", topicParameters.corbboxQueueSize, 1);
+  nodeHandle_.param("publishers/CorBBox_depth_image/latch", topicParameters.corbboxLatch, true);
+
+}
+
+void YoloObjectDetector::subscribeTopics(){
+
+  for (int i = 0; i < CAMERA_NUM; i++){
+	  imageSubscriber_[i] = imageTransport_.subscribe( topicParameters.cameraTopicNames[i], topicParameters.cameraQueueSize, &YoloObjectDetector::cameraCallback, this);
+	  depthImageSubscriber_[i]= nodeHandle_.subscribe(topicParameters.depthTopicNames[i], topicParameters.depthQueueSize, &YoloObjectDetector::depth_image_Callback, this);
+  }
+
 }
 
 void YoloObjectDetector::checkForObjectsActionGoalCB()
@@ -362,14 +339,6 @@ bool YoloObjectDetector::publishDetectionImage(const cv::Mat& detectionImage)
   return true;
 }
 
-// double YoloObjectDetector::getWallTime()
-// {
-//   struct timeval time;
-//   if (gettimeofday(&time, NULL)) {
-//     return 0;
-//   }
-//   return (double) time.tv_sec + (double) time.tv_usec * .000001;
-// }
 
 int YoloObjectDetector::sizeNetwork(network *net)
 {
@@ -635,7 +604,6 @@ void YoloObjectDetector::yolo()
   demoTime_ = what_time_is_it_now();
 
   while (!demoDone_) {
-//-------------Added By Lynne Begin------------------
 	  std::unique_lock<std::mutex> loc(mutexNewImageCome);
 	while(!newImageComeFlag_)
 	{
@@ -652,7 +620,6 @@ void YoloObjectDetector::yolo()
 	*/
 
     newImageComeFlag_ = false;
-//-------------Added By Lynne End------------------
 
     buffIndex_ = (buffIndex_ + 1) % 3;
     fetch_thread = std::thread(&YoloObjectDetector::fetchInThread, this);
@@ -701,11 +668,9 @@ bool YoloObjectDetector::isNodeRunning(void)
 
 void *YoloObjectDetector::publishInThread()
 {
-  /*************************************** New Added ********************************************************/
 
    darknet_ros_msgs::CorBBox depth_msg_to_publish;
 
-/**********************************************************************************************************/
   // Publish image.
   if(!viewImage_){
       imagePreprocess(buff_[(buffIndex_ + 1)%3], ipl_);
@@ -751,7 +716,6 @@ void *YoloObjectDetector::publishInThread()
           boundingBox.ymax = ymax;
           boundingBoxesResults_.bounding_boxes.push_back(boundingBox);
 
-/*************************************** New Added ********************************************************/
 
 // get center point of box
         geometry_msgs::Point tempPoint;
@@ -765,7 +729,6 @@ void *YoloObjectDetector::publishInThread()
 	//cor_bbox_results_.cors.push_back(tempCor);
 	//cor_bbox_results_.bbox.push_back(boundingBox);
 
-/**********************************************************************************************************/
         }
       }
     }
@@ -781,7 +744,6 @@ void *YoloObjectDetector::publishInThread()
     //objectPublisher_[1].publish(msg);
   }
 
-  /*************************************** New Added ********************************************************/
 
 // Publish self-defined message
     depth_msg_to_publish.bounding_boxes = boundingBoxesResults_.bounding_boxes;
@@ -791,7 +753,6 @@ void *YoloObjectDetector::publishInThread()
     depth_msg_to_publish.image = *im_msg;
 // Publish self-defined message
     corDepthImagePublisher_.publish(depth_msg_to_publish);
-/**********************************************************************************************************/
   if (isCheckingForObjects()) {
     ROS_DEBUG("[YoloObjectDetector] check for objects in image.");
     darknet_ros_msgs::CheckForObjectsResult objectsActionResult;

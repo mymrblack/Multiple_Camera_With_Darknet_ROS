@@ -81,6 +81,30 @@ extern "C" void rgbgr_image(image im);
 #define DEFAULT_WEIGHT_FILE_NAME "yolov3-tiny.weights"
 #define CAMERA_DEPTH_TOPIC_PATH_ROOT "subscribers/camera_depth_reading_"
 #define CAMERA_DEPTH_TOPIC_DEFAULT_NAME "/camera/depth/image_rect_raw_"
+
+
+namespace darknet_ros {
+
+//! Bounding box of the detected object.
+typedef struct
+{
+  float x, y, w, h, prob;
+  int num, Class;
+} RosBox_;
+
+
+// camera D415 intrincics
+const double x0 = 315.297; // principle point
+const double y0 = 248.041;
+const double fx = 615.094; // focal length
+const double fy = 614.703;
+
+typedef struct
+{
+  IplImage* image;
+  std_msgs::Header header;
+} IplImageWithHeader_;
+
 typedef struct{
 
   std::string cameraTopicNames[CAMERA_NUM]; //Added by Lynne.
@@ -107,46 +131,6 @@ typedef struct{
 
 } TopicInputParams_;
 
-/*
-typedef struct{
-
-  ros::Publisher objectPublisher_[CAMERA_NUM];
-  ros::Publisher boundingBoxesPublisher_[CAMERA_NUM];
-
-  //! Publisher of the bounding box image.
-  ros::Publisher detectionImagePublisher_[CAMERA_NUM];
-
-} Publishers_;
-
-Publishers_ publishers_;
-*/
-//-------------------------Added By Lynne End-----------------
-
-namespace darknet_ros {
-
-//! Bounding box of the detected object.
-typedef struct
-{
-  float x, y, w, h, prob;
-  int num, Class;
-} RosBox_;
-
-/*************************************** New Added *********************************************************/
-
-// camera D415 intrincics
-const double x0 = 315.297; // principle point
-const double y0 = 248.041;
-const double fx = 615.094; // focal length
-const double fy = 614.703;
-
-//int ObjectCount = 0; // count for bounding boxes
-/***********************************************************************************************************/
-typedef struct
-{
-  IplImage* image;
-  std_msgs::Header header;
-} IplImageWithHeader_;
-
 class YoloObjectDetector
 {
  public:
@@ -167,6 +151,8 @@ class YoloObjectDetector
    */
   bool readParameters();
 
+  TopicInputParams_ topicParameters;
+  void readTopicParameters();
   /*!
    * Initialize the ROS connections.
    */
@@ -178,12 +164,10 @@ class YoloObjectDetector
    */
   void cameraCallback(const sensor_msgs::ImageConstPtr& msg);
 
-/************************************** New Added *********************************************************/
 
   //! callback function for subscriber of depth image
   void depth_image_Callback(const sensor_msgs::ImageConstPtr& msg);
 
-/***********************************************************************************************************/
   /*!
    * Check for objects action goal callback.
    */
@@ -236,7 +220,6 @@ class YoloObjectDetector
   int frameWidth_;
   int frameHeight_;
 
-/******************************** New Added Global Variables ************************************************/
 
   //SortObject sortobject;
   cv::Mat depth_image; // store depth image matrix
@@ -245,7 +228,6 @@ class YoloObjectDetector
   //! Publisher of the bounding box with (x,y,z)
   ros::Publisher corDepthImagePublisher_;
 
-/***********************************************************************************************************/
   ros::Publisher objectPublisher_[CAMERA_NUM];
   ros::Publisher boundingBoxesPublisher_[CAMERA_NUM];
 
@@ -343,8 +325,9 @@ class YoloObjectDetector
   
   void getTopicNameParameters(const std::string pathRoot, std::string topicNames[], int cam_num, const std::string defaultName);
   
-  void getTopicInputParams(TopicInputParams_ *topicInputParams);
-  void publishTopics(TopicInputParams_ *topicInputParams);
+  void publishTopics();
+
+  void subscribeTopics();
   
   bool newImageComeFlag_ = false;
   std::mutex mutexNewImageCome;
