@@ -79,6 +79,8 @@ extern "C" void rgbgr_image(image im);
 #define THRESHOLD_PATH "yolo_model/threshold/value"
 #define WEIGHTS_MODEL_PATH  "yolo_model/weight_file/name"
 #define DEFAULT_WEIGHT_FILE_NAME "yolov3-tiny.weights"
+#define CAMERA_DEPTH_TOPIC_PATH_ROOT "subscribers/camera_depth_reading_"
+#define CAMERA_DEPTH_TOPIC_DEFAULT_NAME "/camera/depth/image_rect_raw_"
 typedef struct{
 
   std::string cameraTopicNames[CAMERA_NUM]; //Added by Lynne.

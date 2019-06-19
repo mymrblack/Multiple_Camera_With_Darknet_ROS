@@ -138,34 +138,25 @@ void YoloObjectDetector::init()
 
   TopicInputParams_ topicInputParams;
   getTopicInputParams(&topicInputParams);
-  //std::cout << "camera topic name:" << topicInputParams.cameraTopicNames[0] << " " << topicInputParams.cameraTopicNames[1] << std::endl;
 
-  //std::cout << "object detector topic name:" << topicInputParams.objectDetectorTopicNames[0] << " " << topicInputParams.objectDetectorTopicNames[1] << std::endl;
-
-  //std::cout << "Bounding Boxes topic name:" << topicInputParams.boundingBoxesTopicNames[0] << " " <<  topicInputParams.boundingBoxesTopicNames[1] << std::endl;
 //--------------------- Added by Lynne End ------------------------------//
 
 
   // subsrciber
+  for (int i = 0; i < CAMERA_NUM; i++){
+	  imageSubscriber_[i] = imageTransport_.subscribe( topicInputParams.cameraTopicNames[i], topicInputParams.cameraQueueSize, &YoloObjectDetector::cameraCallback, this);
+	  depthImageSubscriber_[i]= nodeHandle_.subscribe(topicInputParams.depthTopicNames[i], topicInputParams.depthQueueSize, &YoloObjectDetector::depth_image_Callback, this);
+  }
+  /*
   imageSubscriber_[0] = imageTransport_.subscribe( topicInputParams.cameraTopicNames[0], topicInputParams.cameraQueueSize, &YoloObjectDetector::cameraCallback, this);
   imageSubscriber_[1] = imageTransport_.subscribe( topicInputParams.cameraTopicNames[1], topicInputParams.cameraQueueSize, &YoloObjectDetector::cameraCallback, this);
    depthImageSubscriber_[0]= nodeHandle_.subscribe(topicInputParams.depthTopicNames[0], topicInputParams.depthQueueSize, &YoloObjectDetector::depth_image_Callback, this);
    depthImageSubscriber_[1]= nodeHandle_.subscribe(topicInputParams.depthTopicNames[1], topicInputParams.depthQueueSize, &YoloObjectDetector::depth_image_Callback, this);
+   */
 //--------------------- Added by Lynne Begin ------------------------------//
   publishTopics(&topicInputParams);
 //--------------------- Added by Lynne End ------------------------------//
 
-
-/******************************** New Added ***************************************************************/
-
-  
-
-
-  // publisher
-
-
-
-/**********************************************************************************************************/         
   // Action servers.
   std::string checkForObjectsActionName;
   nodeHandle_.param("actions/camera_reading/topic", checkForObjectsActionName,
@@ -288,9 +279,7 @@ void YoloObjectDetector::getTopicInputParams(TopicInputParams_ *topicInputParams
 
   getTopicNameParameters(PUBLISH_DETECTION_IMAGE_PATH_ROOT, topicInputParams->detectionImageTopicNames, CAMERA_NUM, DETECTION_IMAGE_DEFAULT_NAME);
 
-  nodeHandle_.param("subscribers/camera_depth_reading_1/topic", topicInputParams->depthTopicNames[0], std::string("/camera1/depth/image_rect_raw"));
-  nodeHandle_.param("subscribers/camera_depth_reading_2/topic", topicInputParams->depthTopicNames[1], std::string("/camera2/depth/image_rect_raw"));
-
+  getTopicNameParameters(CAMERA_DEPTH_TOPIC_PATH_ROOT, topicInputParams->depthTopicNames, CAMERA_NUM, CAMERA_DEPTH_TOPIC_DEFAULT_NAME);
 
   nodeHandle_.param("subscribers/camera_depth_reading_1/queue_size", topicInputParams->depthQueueSize, 1);
   nodeHandle_.param("subscribers/camera_reading_1/queue_size", topicInputParams->cameraQueueSize, 1);
@@ -519,9 +508,6 @@ void *YoloObjectDetector::fetchInThread()
     boost::shared_lock<boost::shared_mutex> lock(mutexImageCallback_);
     buffId_[buffIndex_] = actionId_;
   }
-//--------------------Added By Lynne Begin--------------------------
-// linkedHeaderBuff_[buffIndex_] = headerBuff_[buffIndex_];
-//--------------------Added By Lynne End--------------------------
   rgbgr_image(buff_[buffIndex_]);
   letterbox_image_into(buff_[buffIndex_], net_->w, net_->h, buffLetter_[buffIndex_]);
   return 0;
@@ -530,7 +516,6 @@ void *YoloObjectDetector::fetchInThread()
 void *YoloObjectDetector::displayInThread(void *ptr)
 {
   if ( headerBuff_[(buffIndex_ + 1)%3].frame_id == "camera1_color_optical_frame"){
-  //if ( linkedHeaderBuff_[(buffIndex_ + 1)%3].frame_id == "camera1_color_optical_frame"){
      show_image_cv(buff_[(buffIndex_ + 1)%3], "YOLO V3", ipl_);
   }
   else{
@@ -625,9 +610,6 @@ void YoloObjectDetector::yolo()
   headerBuff_[0] = imageAndHeader.header;
   headerBuff_[1] = headerBuff_[0];
   headerBuff_[2] = headerBuff_[0];
-  //linkedHeaderBuff_[0] = imageAndHeader.header;
-  //linkedHeaderBuff_[1] = headerBuff_[0];
-  //linkedHeaderBuff_[2] = headerBuff_[0];
   buffLetter_[0] = letterbox_image(buff_[0], net_->w, net_->h);
   buffLetter_[1] = letterbox_image(buff_[0], net_->w, net_->h);
   buffLetter_[2] = letterbox_image(buff_[0], net_->w, net_->h);
@@ -689,7 +671,6 @@ void YoloObjectDetector::yolo()
     }
     fetch_thread.join();
     detect_thread.join();
-    //linkedHeaderBuff_[(buffIndex_ + 1) % 3] = headerBuff_[buffIndex_];
     ++count;
     if (!isNodeRunning()) {
       demoDone_ = true;
