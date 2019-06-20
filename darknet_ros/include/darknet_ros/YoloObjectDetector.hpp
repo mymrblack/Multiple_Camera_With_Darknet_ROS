@@ -129,6 +129,7 @@ typedef struct{
   int corbboxQueueSize;
   bool corbboxLatch;
 
+  std::string checkForObjectsActionName;
 } TopicInputParams_;
 
 class YoloObjectDetector
@@ -162,7 +163,8 @@ class YoloObjectDetector
    * Callback of camera.
    * @param[in] msg image pointer.
    */
-  void cameraCallback(const sensor_msgs::ImageConstPtr& msg);
+  void cameraCallback_1(const sensor_msgs::ImageConstPtr& msg);
+  void cameraCallback_2(const sensor_msgs::ImageConstPtr& msg);
 
 
   //! callback function for subscriber of depth image
@@ -328,6 +330,10 @@ class YoloObjectDetector
   void publishTopics();
 
   void subscribeTopics();
+
+  void setupActionServer();
+
+  void waitingForNewImage();
   
   bool newImageComeFlag_ = false;
   std::mutex mutexNewImageCome;

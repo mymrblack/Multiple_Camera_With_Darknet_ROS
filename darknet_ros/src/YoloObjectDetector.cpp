@@ -48,12 +48,12 @@ YoloObjectDetector::~YoloObjectDetector()
   {
     boost::unique_lock<boost::shared_mutex> lockNodeStatus(mutexNodeStatus_);
     isNodeRunning_ = false;
-	{
+  }
+  {
 	//The flag here just for continue the while loop in yolo() so that it can detect the isNodeRunning_
-	  std::unique_lock<std::mutex> loc(mutexNewImageCome);
-	  newImageComeFlag_ = true;
-	  newImageComeCondition.notify_all();
-	}
+	 std::unique_lock<std::mutex> loc(mutexNewImageCome);
+	 newImageComeFlag_ = true;
+	 newImageComeCondition.notify_all();
   }
   yoloThread_.join();
 }
@@ -140,16 +140,16 @@ void YoloObjectDetector::init()
   subscribeTopics();
 
   // Action servers.
-  std::string checkForObjectsActionName;
-  nodeHandle_.param("actions/camera_reading/topic", checkForObjectsActionName,
-                    std::string("check_for_objects"));
+  setupActionServer();
+  /*
   checkForObjectsActionServer_.reset(
-      new CheckForObjectsActionServer(nodeHandle_, checkForObjectsActionName, false));
+      new CheckForObjectsActionServer(nodeHandle_, topicParameters.checkForObjectsActionName, false));
   checkForObjectsActionServer_->registerGoalCallback(
       boost::bind(&YoloObjectDetector::checkForObjectsActionGoalCB, this));
   checkForObjectsActionServer_->registerPreemptCallback(
       boost::bind(&YoloObjectDetector::checkForObjectsActionPreemptCB, this));
   checkForObjectsActionServer_->start();
+  */
 }
 
 
@@ -172,11 +172,11 @@ void YoloObjectDetector::depth_image_Callback(const sensor_msgs::ImageConstPtr& 
 	depth_image = cv_ptr->image;
 }
 
-void YoloObjectDetector::cameraCallback(const sensor_msgs::ImageConstPtr& msg)
+void YoloObjectDetector::cameraCallback_1(const sensor_msgs::ImageConstPtr& msg)
 {
   ROS_DEBUG("[YoloObjectDetector] USB image received.");
   {
-	  std::unique_lock<std::mutex> loc(mutexNewImageCome);
+    std::unique_lock<std::mutex> loc(mutexNewImageCome);
   	newImageComeFlag_ = true;
 	newImageComeCondition.notify_all();
   }
@@ -206,6 +206,40 @@ void YoloObjectDetector::cameraCallback(const sensor_msgs::ImageConstPtr& msg)
   return;
 }
 
+
+void YoloObjectDetector::cameraCallback_2(const sensor_msgs::ImageConstPtr& msg)
+{
+  ROS_DEBUG("[YoloObjectDetector] USB image received.");
+  {
+    std::unique_lock<std::mutex> loc(mutexNewImageCome);
+  	newImageComeFlag_ = true;
+	newImageComeCondition.notify_all();
+  }
+  cv_bridge::CvImagePtr cam_image;
+
+  try {
+    cam_image = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
+  } catch (cv_bridge::Exception& e) {
+    ROS_ERROR("cv_bridge exception: %s", e.what());
+    return;
+  }
+
+  if (cam_image) {
+    {
+      boost::unique_lock<boost::shared_mutex> lockImageCallback(mutexImageCallback_);
+      imageHeader_ = msg->header;
+      //std::cout << imageHeader_ << std::endl;
+      camImageCopy_ = cam_image->image.clone();
+    }
+    {
+      boost::unique_lock<boost::shared_mutex> lockImageStatus(mutexImageStatus_);
+      imageStatus_ = true;
+    }
+    frameWidth_ = cam_image->image.size().width;
+    frameHeight_ = cam_image->image.size().height;
+  }
+  return;
+}
 
 void YoloObjectDetector::getTopicNameParameters(const std::string pathRoot, std::string topicNames[], int cam_num, const std::string defaultName){
 
@@ -264,17 +298,44 @@ void YoloObjectDetector::readTopicParameters(){
   nodeHandle_.param("publishers/CorBBox_depth_image/queue_size", topicParameters.corbboxQueueSize, 1);
   nodeHandle_.param("publishers/CorBBox_depth_image/latch", topicParameters.corbboxLatch, true);
 
+  nodeHandle_.param("actions/camera_reading/topic", topicParameters.checkForObjectsActionName, std::string("check_for_objects"));
 }
 
 void YoloObjectDetector::subscribeTopics(){
 
+	  imageSubscriber_[0] = imageTransport_.subscribe( topicParameters.cameraTopicNames[0], topicParameters.cameraQueueSize, &YoloObjectDetector::cameraCallback_1, this);
+	  imageSubscriber_[1] = imageTransport_.subscribe( topicParameters.cameraTopicNames[1], topicParameters.cameraQueueSize, &YoloObjectDetector::cameraCallback_2, this);
   for (int i = 0; i < CAMERA_NUM; i++){
-	  imageSubscriber_[i] = imageTransport_.subscribe( topicParameters.cameraTopicNames[i], topicParameters.cameraQueueSize, &YoloObjectDetector::cameraCallback, this);
+	  //imageSubscriber_[i] = imageTransport_.subscribe( topicParameters.cameraTopicNames[i], topicParameters.cameraQueueSize, &YoloObjectDetector::cameraCallback, this);
 	  depthImageSubscriber_[i]= nodeHandle_.subscribe(topicParameters.depthTopicNames[i], topicParameters.depthQueueSize, &YoloObjectDetector::depth_image_Callback, this);
   }
 
 }
 
+void YoloObjectDetector::setupActionServer(){
+  checkForObjectsActionServer_.reset(
+      new CheckForObjectsActionServer(nodeHandle_, topicParameters.checkForObjectsActionName, false));
+  checkForObjectsActionServer_->registerGoalCallback(
+      boost::bind(&YoloObjectDetector::checkForObjectsActionGoalCB, this));
+  checkForObjectsActionServer_->registerPreemptCallback(
+      boost::bind(&YoloObjectDetector::checkForObjectsActionPreemptCB, this));
+  checkForObjectsActionServer_->start();
+}
+
+void YoloObjectDetector::waitingForNewImage(){
+
+	/*
+	std::unique_lock<std::mutex> loc(mutexNewImageCome);
+	while(!newImageComeFlag_)
+	{
+		newImageComeCondition.wait(loc);
+	}
+
+	newImageComeFlag_ = false;
+	*/
+
+
+}
 void YoloObjectDetector::checkForObjectsActionGoalCB()
 {
   ROS_DEBUG("[YoloObjectDetector] Start check for objects action.");
@@ -470,15 +531,15 @@ void *YoloObjectDetector::fetchInThread()
 
   IplImageWithHeader_ imageAndHeader = getIplImageWithHeader();
   IplImage* ROS_img = imageAndHeader.image;
-  ipl_into_image(ROS_img, buff_[buffIndex_]);
 
-  headerBuff_[buffIndex_] = imageAndHeader.header;
   {
     boost::shared_lock<boost::shared_mutex> lock(mutexImageCallback_);
+	ipl_into_image(ROS_img, buff_[buffIndex_]);
+	headerBuff_[buffIndex_] = imageAndHeader.header;
     buffId_[buffIndex_] = actionId_;
+	rgbgr_image(buff_[buffIndex_]);
+	letterbox_image_into(buff_[buffIndex_], net_->w, net_->h, buffLetter_[buffIndex_]);
   }
-  rgbgr_image(buff_[buffIndex_]);
-  letterbox_image_into(buff_[buffIndex_], net_->w, net_->h, buffLetter_[buffIndex_]);
   return 0;
 }
 
@@ -490,6 +551,7 @@ void *YoloObjectDetector::displayInThread(void *ptr)
   else{
      show_image_cv(buff_[(buffIndex_ + 1)%3], "YOLO V3_1", ipl_);
   }
+
   int c = cvWaitKey(waitKeyDelay_);
   if (c != -1) c = c%256;
   if (c == 27) {
@@ -603,25 +665,31 @@ void YoloObjectDetector::yolo()
   const auto wait_duration_1 = std::chrono::milliseconds(5);//Added By Lynne.
   demoTime_ = what_time_is_it_now();
 
+
   while (!demoDone_) {
-	  std::unique_lock<std::mutex> loc(mutexNewImageCome);
+
+//	waitingForNewImage();
+	/*
+	if(!newImageComeFlag_)
+	{
+		std::unique_lock<std::mutex> loc(mutexNewImageCome);
+		newImageComeCondition.wait(loc);
+		newImageComeFlag_ = false;
+	}
+    */
+	/*
 	while(!newImageComeFlag_)
 	{
-		newImageComeCondition.wait(loc);
+		std::this_thread::sleep_for(wait_duration_1);
 	}
-	  /*
-    if (!newImageComeFlag_) {
-        if (!isNodeRunning()) {
-          demoDone_ = true;
-        }
-    	std::this_thread::sleep_for(wait_duration_1);
-	continue;	
-    }
+
+	{
+		std::unique_lock<std::mutex> loc(mutexNewImageCome);
+		newImageComeFlag_ = false;
+	}
 	*/
-
-    newImageComeFlag_ = false;
-
     buffIndex_ = (buffIndex_ + 1) % 3;
+
     fetch_thread = std::thread(&YoloObjectDetector::fetchInThread, this);
     detect_thread = std::thread(&YoloObjectDetector::detectInThread, this);
     if (!demoPrefix_) {
@@ -639,9 +707,11 @@ void YoloObjectDetector::yolo()
     fetch_thread.join();
     detect_thread.join();
     ++count;
+
     if (!isNodeRunning()) {
       demoDone_ = true;
     }
+
   }
 
 }
