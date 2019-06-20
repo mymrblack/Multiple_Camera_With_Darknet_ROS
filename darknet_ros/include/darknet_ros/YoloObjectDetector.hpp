@@ -163,9 +163,7 @@ class YoloObjectDetector
    * Callback of camera.
    * @param[in] msg image pointer.
    */
-  void cameraCallback_1(const sensor_msgs::ImageConstPtr& msg);
-  void cameraCallback_2(const sensor_msgs::ImageConstPtr& msg);
-
+  void cameraCallback(const sensor_msgs::ImageConstPtr& msg);
 
   //! callback function for subscriber of depth image
   void depth_image_Callback(const sensor_msgs::ImageConstPtr& msg);

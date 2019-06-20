@@ -172,42 +172,7 @@ void YoloObjectDetector::depth_image_Callback(const sensor_msgs::ImageConstPtr& 
 	depth_image = cv_ptr->image;
 }
 
-void YoloObjectDetector::cameraCallback_1(const sensor_msgs::ImageConstPtr& msg)
-{
-  ROS_DEBUG("[YoloObjectDetector] USB image received.");
-  {
-    std::unique_lock<std::mutex> loc(mutexNewImageCome);
-  	newImageComeFlag_ = true;
-	newImageComeCondition.notify_all();
-  }
-  cv_bridge::CvImagePtr cam_image;
-
-  try {
-    cam_image = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
-  } catch (cv_bridge::Exception& e) {
-    ROS_ERROR("cv_bridge exception: %s", e.what());
-    return;
-  }
-
-  if (cam_image) {
-    {
-      boost::unique_lock<boost::shared_mutex> lockImageCallback(mutexImageCallback_);
-      imageHeader_ = msg->header;
-      //std::cout << imageHeader_ << std::endl;
-      camImageCopy_ = cam_image->image.clone();
-    }
-    {
-      boost::unique_lock<boost::shared_mutex> lockImageStatus(mutexImageStatus_);
-      imageStatus_ = true;
-    }
-    frameWidth_ = cam_image->image.size().width;
-    frameHeight_ = cam_image->image.size().height;
-  }
-  return;
-}
-
-
-void YoloObjectDetector::cameraCallback_2(const sensor_msgs::ImageConstPtr& msg)
+void YoloObjectDetector::cameraCallback(const sensor_msgs::ImageConstPtr& msg)
 {
   ROS_DEBUG("[YoloObjectDetector] USB image received.");
   {
@@ -303,10 +268,8 @@ void YoloObjectDetector::readTopicParameters(){
 
 void YoloObjectDetector::subscribeTopics(){
 
-	  imageSubscriber_[0] = imageTransport_.subscribe( topicParameters.cameraTopicNames[0], topicParameters.cameraQueueSize, &YoloObjectDetector::cameraCallback_1, this);
-	  imageSubscriber_[1] = imageTransport_.subscribe( topicParameters.cameraTopicNames[1], topicParameters.cameraQueueSize, &YoloObjectDetector::cameraCallback_2, this);
   for (int i = 0; i < CAMERA_NUM; i++){
-	  //imageSubscriber_[i] = imageTransport_.subscribe( topicParameters.cameraTopicNames[i], topicParameters.cameraQueueSize, &YoloObjectDetector::cameraCallback, this);
+	  imageSubscriber_[i] = imageTransport_.subscribe( topicParameters.cameraTopicNames[i], topicParameters.cameraQueueSize, &YoloObjectDetector::cameraCallback, this);
 	  depthImageSubscriber_[i]= nodeHandle_.subscribe(topicParameters.depthTopicNames[i], topicParameters.depthQueueSize, &YoloObjectDetector::depth_image_Callback, this);
   }
 
@@ -324,7 +287,6 @@ void YoloObjectDetector::setupActionServer(){
 
 void YoloObjectDetector::waitingForNewImage(){
 
-	/*
 	std::unique_lock<std::mutex> loc(mutexNewImageCome);
 	while(!newImageComeFlag_)
 	{
@@ -332,8 +294,6 @@ void YoloObjectDetector::waitingForNewImage(){
 	}
 
 	newImageComeFlag_ = false;
-	*/
-
 
 }
 void YoloObjectDetector::checkForObjectsActionGoalCB()
@@ -668,26 +628,8 @@ void YoloObjectDetector::yolo()
 
   while (!demoDone_) {
 
-//	waitingForNewImage();
-	/*
-	if(!newImageComeFlag_)
-	{
-		std::unique_lock<std::mutex> loc(mutexNewImageCome);
-		newImageComeCondition.wait(loc);
-		newImageComeFlag_ = false;
-	}
-    */
-	/*
-	while(!newImageComeFlag_)
-	{
-		std::this_thread::sleep_for(wait_duration_1);
-	}
+	waitingForNewImage();
 
-	{
-		std::unique_lock<std::mutex> loc(mutexNewImageCome);
-		newImageComeFlag_ = false;
-	}
-	*/
     buffIndex_ = (buffIndex_ + 1) % 3;
 
     fetch_thread = std::thread(&YoloObjectDetector::fetchInThread, this);
